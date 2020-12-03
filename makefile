@@ -42,7 +42,8 @@ all: um
 %.o: %.c $(INCLUDES)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-um: universalmachine.o mem_seq.o registers.o operations_cpu.o bitpack.o
+um: universalmachine.o mem_seq.o registers.o operations_cpu.o bitpack.o \
+    array.o sequence.o identifiers.o
 	$(COMPILE)
 
 

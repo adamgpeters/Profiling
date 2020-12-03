@@ -22,8 +22,9 @@
 */
 static void move(Reg_arr r, uint32_t a, uint32_t b, uint32_t c)
 {
-    if (Reg_get(r, c) != 0) {
-        Reg_set(r, a, Reg_get(r, b));
+    if (r[c] != 0) {
+        r[a] = r[b];
+        // Reg_set(r, a, r[b]);
     }
 }
 
@@ -38,8 +39,11 @@ static void move(Reg_arr r, uint32_t a, uint32_t b, uint32_t c)
   Return:    none - void
 */
 static void load(Reg_arr r, Mem_Seq m, uint32_t a, uint32_t b, uint32_t c)
-{
-    Reg_set(r, a, *(uint32_t *)Mem_seg_at(m, Reg_get(r, b), Reg_get(r, c)));
+{     
+  r[a] = (((Array_T)Sequence_get(m->memory, r[b]))->arr)[r[c]];
+  // Reg_set(r, a, (((Array_T)Sequence_get(m->memory, r[b]))->arr)
+          // [r[c]]);
+  // Array_get((Array_T)Sequence_get(m->memory, r[b]), r[c]))
 }
 
 /*
@@ -55,7 +59,11 @@ static void load(Reg_arr r, Mem_Seq m, uint32_t a, uint32_t b, uint32_t c)
 */
 static void store(Reg_arr r, Mem_Seq m, uint32_t a, uint32_t b, uint32_t c)
 {
-    *(uint32_t *)Mem_seg_at(m, Reg_get(r, a), Reg_get(r, b)) = Reg_get(r, c);
+    (((Array_T)Sequence_get(m->memory, r[a]))->arr)[r[b]] 
+        = r[c];
+    // (a->arr)[index] = val;
+    // Array_put((Array_T)Sequence_get(m->memory, r[a]), r[b], r[c]);
+    // Mem_seg_put(m, r[a], r[b], r[c]);
 }
 
 /********************* ARITHMETIC FUNCTIONS **********************************/
@@ -69,8 +77,9 @@ static void store(Reg_arr r, Mem_Seq m, uint32_t a, uint32_t b, uint32_t c)
   Return:    none - void
 */
 static void add(Reg_arr r, uint32_t a, uint32_t b, uint32_t c)
-{
-    Reg_set(r, a, Reg_get(r, b) + Reg_get(r, c));
+{   
+    r[a] = r[b]+r[c];
+    // Reg_set(r, a, r[b] + r[c]);
 }
 
 /*
@@ -84,7 +93,7 @@ static void add(Reg_arr r, uint32_t a, uint32_t b, uint32_t c)
 */
 static void mult(Reg_arr r, uint32_t a, uint32_t b, uint32_t c)
 {
-    Reg_set(r, a, Reg_get(r, b) * Reg_get(r, c));
+    r[a] = r[b] * r[c];
 }
 
 /*
@@ -99,8 +108,9 @@ static void mult(Reg_arr r, uint32_t a, uint32_t b, uint32_t c)
 */
 static void divide(Reg_arr r, uint32_t a, uint32_t b, uint32_t c)
 {
-    assert(Reg_get(r, c) != 0); 
-    Reg_set(r, a, Reg_get(r, b) / Reg_get(r, c));
+    assert(r[c] != 0);
+    r[a] = r[b] / r[c]; 
+    // Reg_set(r, a, r[b] / r[c]);
 }
 
 /*
@@ -115,7 +125,8 @@ static void divide(Reg_arr r, uint32_t a, uint32_t b, uint32_t c)
 */
 static void nand(Reg_arr r, uint32_t a, uint32_t b, uint32_t c)
 {
-    Reg_set(r, a, ~(Reg_get(r, b) & Reg_get(r, c)));
+    r[a] = ~(r[b] & r[c]);
+    // Reg_set(r, a, ~(r[b] & r[c]));
 }
 
 /*
@@ -149,10 +160,11 @@ static void halt(Reg_arr r, Mem_Seq m, cpu cpu)
 */ 
 static void map(Reg_arr r, Mem_Seq m, uint32_t b, uint32_t c)
 {
-    unsigned placement = Mem_addseg(m, Reg_get(r, c));
+    unsigned placement = Mem_addseg(m, r[c]);
     /* Ensure that there was enough memory to map a new segment */
-    assert(placement != 0);
-    Reg_set(r, b, placement);
+    // assert(placement != 0);
+    r[b] = placement;
+    // Reg_set(r, b, placement);
 }
 
 /*
@@ -165,7 +177,7 @@ static void map(Reg_arr r, Mem_Seq m, uint32_t b, uint32_t c)
 */ 
 static void unmap(Reg_arr r, Mem_Seq m, uint32_t c)
 {
-    Mem_freeseg(m, Reg_get(r, c));
+    Mem_freeseg(m, r[c]);
 }
 
 /*********************** I/O FUNCTIONS ***************************************/
@@ -180,9 +192,9 @@ static void unmap(Reg_arr r, Mem_Seq m, uint32_t c)
 */ 
 static void output(Reg_arr r, uint32_t c)
 {
-    unsigned num = Reg_get(r,c);
+    unsigned num = r[c];
     assert(num <= 255);
-    putchar(Reg_get(r,c));
+    putchar(r[c]);
 }
 
 /*
@@ -201,9 +213,11 @@ static void input(Reg_arr r, uint32_t c)
     assert(val >= 0 && val <= 255);
     /* Set the register to all 1's if the end of input has been signalled */
     if (val == EOF) {
-        Reg_set(r, c, ~((unsigned)0));
+      r[c] = ~((unsigned)0);
+      // Reg_set(r, c, ~((unsigned)0));
     } else {
-        Reg_set(r, c, val);
+       r[c] = val;
+      // Reg_set(r, c, val);
     }
 }
 
@@ -220,7 +234,7 @@ static void input(Reg_arr r, uint32_t c)
 */ 
 static void load_program(Reg_arr r, Mem_Seq m, uint32_t b)
 {
-    Mem_load(m, Reg_get(r, b));
+    Mem_load(m, r[b]);
 }
 
 /*
@@ -233,7 +247,8 @@ static void load_program(Reg_arr r, Mem_Seq m, uint32_t b)
 */ 
 static void load_value(Reg_arr r, uint32_t a, uint32_t val)
 {
-    Reg_set(r, a, val);
+    r[a] = val;
+    // Reg_set(r, a, val);
 }
 
 /*********************** CPU FUNCTIONS ***************************************/

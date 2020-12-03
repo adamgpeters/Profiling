@@ -18,11 +18,13 @@
 #include <assert.h>
 #include <uarray.h>
 #include <seq.h>
+#include "sequence.h"
+#include "identifiers.h"
 #include <stack.h>
 
 typedef struct Mem_Seq {
-    Seq_T memory;
-    UArray_T identifiers;
+    Sequence_T memory;
+    Identifier_T identifiers;
 } *Mem_Seq;
 
 /*
@@ -69,7 +71,7 @@ extern unsigned Mem_addseg(Mem_Seq m, int length);
              value in memory.
   Return:    void * - pointer to index
 */
-extern void *Mem_seg_at(Mem_Seq m, int seg_index, int index);
+// extern void *Mem_seg_at(Mem_Seq m, int seg_index, int index);
 
 /*
   Function:  Mem_seglength
@@ -101,5 +103,8 @@ extern void Mem_freeseg(Mem_Seq m, int seg_index);
   Return:    none - void
 */
 extern void Mem_load(Mem_Seq m, int seg_index);  
+
+extern uint32_t Mem_seg_get(Mem_Seq m, int seg_index, int index);
+extern void Mem_seg_put(Mem_Seq m, int seg_index, int index, uint32_t val);
 
 

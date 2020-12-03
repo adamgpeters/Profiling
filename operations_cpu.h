@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <uarray.h>
 #include "registers.h"
+#include "array.h"
 #include "mem_seq.h"
 
 /* CPU Operations Struct */

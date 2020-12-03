@@ -18,7 +18,7 @@
 #include <assert.h>
 #include <uarray.h>
 
-typedef UArray_T Reg_arr; 
+typedef uint32_t *Reg_arr; 
 
 /*
   Function:  Reg_new

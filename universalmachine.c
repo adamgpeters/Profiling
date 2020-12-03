@@ -19,6 +19,7 @@
 #include <assert.h>
 #include "operations_cpu.h"
 #include "bitpack.h"
+#include "array.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -37,21 +38,12 @@ typedef enum Um_opcode {
         NAND, HALT, MAP, UNMAP, OUT, IN, LOADP, LV
 } Um_opcode;
 
-/* Instruction Info Struct */
-typedef struct instr_info {
-    uint32_t value;
-    Um_opcode op_type;
-    char a;
-    char b; 
-    char c;
-} instr_info;
-
 /* Function Declarations */
 void read_file(char *filename, Mem_Seq m);
-void exec_um(Mem_Seq m, Reg_arr r, cpu cpu);
+void exec_um(Mem_Seq m, Reg_arr r);
 Um_opcode op_type(uint32_t instruction);
-void op_parse(uint32_t instruction, instr_info *info);
-void exec_instr(Mem_Seq m, Reg_arr r, cpu cpu, instr_info *info);
+void exec_instr(Mem_Seq m, Reg_arr r, cpu cpu, Um_opcode op_type, 
+                uint32_t instruction);
 void quit_um(Mem_Seq m, Reg_arr r);
 
 /******************* READ FILE FUNCTION **************************************/
@@ -87,8 +79,15 @@ void read_file(char *filename, Mem_Seq m)
         for (unsigned z = 0; z < 4; z ++) {
             word = Bitpack_newu(word, 8, 24 - z * 8, getc(f));
         }
-        uint32_t *elem = Mem_seg_at(m, 0, i);
-        *elem = word;
+        
+        (((m->memory->seq)[0])->arr)[i] = word;
+        // ((Sequence_get(m->memory, 0))->arr)[i] = word;
+
+
+        
+        // Array_put((Array_T)Seq_get(m->memory, 0), i, word);
+        // Mem_seg_put(m, 0, i, word);
+        // *elem = word;
     }
     /* Free stat pointer and close file */
     free(s); 
@@ -107,30 +106,248 @@ void read_file(char *filename, Mem_Seq m)
              accordingly.
   Return:    none - void
 */
-void exec_um(Mem_Seq m, Reg_arr r, cpu cpu)
+void exec_um(Mem_Seq m, Reg_arr r)
 {
     int program_counter = 0;
-    int instr_length = Mem_seglength(m, 0);
-    instr_info info;
+
+
+
+    // int instr_length = Mem_seglength(m, 0);
+
+    
+
+
+    int instr_length = ((m->memory->seq)[0])->length;
+    uint32_t instruction, value;
+    unsigned a, b, c; 
+
 
     /* Iterate through Instruction Segment */
     while (program_counter < instr_length) {
         /* Parse and Execute Instruction */
-        uint32_t instruction = *((uint32_t *) Mem_seg_at(m, 0, 
-                                                         program_counter));
-        info.op_type = op_type(instruction);
-        op_parse(instruction, &info);
-        exec_instr(m, r, cpu, &info);
+        // Array_get((Array_T)Seq_get(m->memory, seg_index), index);
+        
+        instruction = (((m->memory->seq)[0])->arr)[program_counter];
+        
+                                // ((Sequence_get(m->memory, 0))->arr)[
+                                //                             program_counter];
+
+    
+
+        //  Array_get((Array_T)Seq_get(m->memory, 0), program_counter);
+        Um_opcode op = op_type(instruction);
+        // op_parse(instruction, &info);
+        
+        switch (op) {
+            case CMOV: 
+                c = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                b = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                a = (instruction & REG_MASK); 
+                if (r[c] != 0) {
+                    r[a] = r[b];
+                    // Reg_set(r, a, r[b]);
+                }
+                break;
+            case SLOAD: 
+                c = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                b = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                a = (instruction & REG_MASK); 
+
+
+                r[a] = (((m->memory->seq)[r[b]])->arr)[r[c]];
+
+                // r[a] = (((Array_T)Sequence_get(m->memory, r[b]))->arr)[r[c]];
+
+
+                break;
+            case SSTORE: 
+                c = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                b = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                a = (instruction & REG_MASK); 
+
+                (((m->memory->seq)[r[a]])->arr)[r[b]] = r[c];
+
+                // (((Array_T)Sequence_get(m->memory, r[a]))->arr)[r[b]] = r[c];
+
+
+                break;
+            case ADD: 
+                c = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                b = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                a = (instruction & REG_MASK); 
+                r[a] = r[b]+r[c];
+                break;
+            case MUL: 
+                c = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                b = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                a = (instruction & REG_MASK); 
+                r[a] = r[b] * r[c];
+                break;
+            case DIV: 
+                c = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                b = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                a = (instruction & REG_MASK); 
+                assert(r[c] != 0);
+                r[a] = r[b] / r[c]; 
+                break;
+            case NAND: 
+                c = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                b = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                a = (instruction & REG_MASK); 
+                r[a] = ~(r[b] & r[c]);
+                break; 
+            case HALT: 
+                Reg_free(&r);
+                Mem_free_all(&m);
+                // Free_cpu(&cpu);
+                exit(EXIT_SUCCESS);
+                break; /* TODO */
+            case MAP: 
+                c = (instruction & REG_MASK); 
+                instruction = instruction >> 3;
+                b = (instruction & REG_MASK); 
+
+
+/********************** ADD SEG INLINE ***************************************/
+
+                // unsigned placement = Mem_addseg(m, length);
+
+                unsigned placement;
+
+                int length = r[c];
+                 /* Initialize Segment */
+                Array_T seg = Array_new(length);
+                if (seg == NULL) {
+                    placement = 0;
+                }
+
+                for (int i = 0; i < length; i++) {
+                    (seg->arr)[i] = 0;
+                    // Array_put(seg,i, 0);
+                    // *elem = 0;
+                }
+                /* Addding the Segment */
+                // unsigned placement;
+                if ((m->identifiers->size) == 0) {
+                    // Sequence_push(m->memory, seg);
+                    Sequence_T s = m->memory;
+                    if(s->size == s->capacity) {
+                        resize(s);
+                    }
+                    (s->seq)[s->size] = seg;
+                    (s->size)++;
+
+                    placement = (s->size) - 1;
+                } else {
+                    unsigned seqIndex = Ident_pop(m->identifiers);
+
+                    (m->memory->seq)[seqIndex] = seg;
+                    // Sequence_put(m->memory, seqIndex, seg);  
+                    placement =  seqIndex;             
+                }
+
+
+/*****************************************************************************/
+
+
+                /* Ensure that there was enough memory to map a new segment */
+                // assert(placement != 0);
+                r[b] = placement;
+                break;
+            case UNMAP: 
+                c = (instruction & REG_MASK); 
+
+/********************** FREE SEG INLINE ***************************************/
+
+
+                // Mem_freeseg(m, r[c]);
+                
+                int seg_index = r[c];
+                
+                Array_T seg_temp = (m->memory->seq)[seg_index];
+                if (seg_temp != NULL) {
+                    /* Push index to Identifiers */
+                    if (seg_index != 0) {
+                        Ident_push(m->identifiers, seg_index);
+                    }
+                    /* Free Segment */
+                    Array_free(&seg_temp);
+                    Sequence_put(m->memory, seg_index, NULL);
+                }
+
+
+/*****************************************************************************/
+
+                break;
+            case OUT: 
+                c = (instruction & REG_MASK); 
+                unsigned num = r[c];
+                assert(num <= 255);
+                putchar(num);
+                break;
+            case IN: 
+                c = (instruction & REG_MASK); 
+                
+                // cpu->input(r, c);
+                
+                int val = getchar();
+                assert(val >= 0 && val <= 255);
+                if (val == EOF) {
+                    r[c] = ~((unsigned)0);
+                    // Reg_set(r, c, ~((unsigned)0));
+                } else {
+                    r[c] = val;
+                    // Reg_set(r, c, val);
+                }
+                
+                break;
+            case LOADP: 
+                b = ((instruction >> 3) & REG_MASK); 
+                // cpu->load_program(r, m, b);       
+                Mem_load(m,r[b]);
+                
+
+                break;
+            case LV: 
+                value = instruction & MASK_VAL;
+                a = (instruction & MASK_A_VAL) >> 25;
+
+                r[a] = value;
+                // cpu->load_value(r, a, value);          
+                break;
+            default: 
+                assert(op < 14);
+        }
 
         /* Update Program Counter */
-        if (info.op_type == LOADP) {
-            program_counter = Reg_get(r, info.c);
-            instr_length = Mem_seglength(m, 0);
+        if (op == LOADP) {
+            program_counter = Reg_get(r, (instruction & REG_MASK));
+
+            
+
+            instr_length =((m->memory->seq)[0])->length;
+            // instr_length = Mem_seglength(m, 0);
         } else {
             program_counter ++;
         }
     }
-    cpu->halt(r, m, cpu);
+    Reg_free(&r);
+    Mem_free_all(&m);
+    exit(EXIT_SUCCESS);
 }
 
 /*
@@ -146,28 +363,6 @@ Um_opcode op_type(uint32_t instruction)
 }
 
 /*
-  Function:  op_parse
-  Arguments: uint32_t instruction
-             instr_info *info - pointer to instruction info struct
-  Does:      Parses a given (uint32_t) instruction and initializes the 
-             passed in instr_info struct based on the instruction's op_type.
-  Return:    none - void
-*/
-void op_parse(uint32_t instruction, instr_info *info)
-{
-    if (info->op_type == LV) {
-        info->value = instruction & MASK_VAL;
-        info->a = (instruction & MASK_A_VAL) >> 25;
-    } else {
-        info->c = (instruction & REG_MASK); 
-        instruction = instruction >> 3;
-        info->b = (instruction & REG_MASK); 
-        instruction = instruction >> 3;
-        info->a = (instruction & REG_MASK); 
-    }
-}
-
-/*
   Function:  exec_instr
   Arguments: Mem_seq m - pointer to Mem_Seq struct
   Does:      Takes in a pointer to an instr_info struct and executes the 
@@ -175,54 +370,92 @@ void op_parse(uint32_t instruction, instr_info *info)
              aligns with a function which exists in the cpu function struct. 
   Return:    none - void
 */
-void exec_instr(Mem_Seq m, Reg_arr r, cpu cpu, instr_info *info)
+void exec_instr(Mem_Seq m, Reg_arr r, cpu cpu, Um_opcode op_type, 
+                uint32_t instruction)
 {
-    switch (info->op_type) {
+    unsigned a, b, c; 
+    uint32_t value;
+    switch (op_type) {
         case CMOV: 
-            cpu->move(r, info->a, info->b, info->c);         
+            c = (instruction & REG_MASK); 
+            instruction = instruction >> 3;
+            b = (instruction & REG_MASK); 
+            a = (instruction >> 3 & REG_MASK); 
+            cpu->move(r, a, b, c);     
             break;
         case SLOAD: 
-            cpu->load(r, m, info->a, info->b, info->c);     
+            c = (instruction & REG_MASK); 
+            instruction = instruction >> 3;
+            b = (instruction & REG_MASK); 
+            a = (instruction >> 3 & REG_MASK); 
+            cpu->load(r, m, a, b, c);     
             break;
         case SSTORE: 
-            cpu->store(r, m, info->a, info->b, info->c);   
+            c = (instruction & REG_MASK); 
+            instruction = instruction >> 3;
+            b = (instruction & REG_MASK); 
+            a = (instruction >> 3 & REG_MASK); 
+            cpu->store(r, m, a, b, c);   
             break;
         case ADD: 
-            cpu->add(r, info->a, info->b, info->c);           
+            c = (instruction & REG_MASK); 
+            instruction = instruction >> 3;
+            b = (instruction & REG_MASK); 
+            a = (instruction >> 3 & REG_MASK); 
+            cpu->add(r, a, b, c);           
             break;
         case MUL: 
-            cpu->mult(r, info->a, info->b, info->c);          
+            c = (instruction & REG_MASK); 
+            instruction = instruction >> 3;
+            b = (instruction & REG_MASK); 
+            a = (instruction >> 3 & REG_MASK); 
+            cpu->mult(r, a, b, c);          
             break;
         case DIV: 
-            cpu->divide(r, info->a, info->b, info->c);        
+            c = (instruction & REG_MASK); 
+            instruction = instruction >> 3;
+            b = (instruction & REG_MASK); 
+            a = (instruction >> 3 & REG_MASK); 
+            cpu->divide(r, a, b, c);        
             break;
         case NAND: 
-            cpu->nand(r, info->a, info->b, info->c);         
+            c = (instruction & REG_MASK); 
+            instruction = instruction >> 3;
+            b = (instruction & REG_MASK); 
+            a = (instruction >> 3 & REG_MASK); 
+            cpu->nand(r, a, b, c);         
             break; 
         case HALT: 
             cpu->halt(r, m, cpu);                            
             break; /* TODO */
         case MAP: 
-            cpu->map(r, m, info->b, info->c);                 
+            c = (instruction & REG_MASK); 
+            b = (instruction >> 3 & REG_MASK); 
+            cpu->map(r, m, b, c);                 
             break;
         case UNMAP: 
-            cpu->unmap(r, m, info->c);                      
+            c = (instruction & REG_MASK); 
+            cpu->unmap(r, m, c);                      
             break;
         case OUT: 
-            cpu->output(r, info->c);                  
+            c = (instruction & REG_MASK); 
+            cpu->output(r, c);                  
             break;
         case IN: 
-            cpu->input(r, info->c);                    
+            c = (instruction & REG_MASK); 
+            cpu->input(r, c);                    
             break;
         case LOADP: 
-            cpu->load_program(r, m, info->b);               
+            b = ((instruction >> 3) & REG_MASK); 
+            cpu->load_program(r, m, b);               
             break;
         case LV: 
-            cpu->load_value(r, info->a, info->value);          
+            value = instruction & MASK_VAL;
+            a = (instruction & MASK_A_VAL) >> 25;
+            cpu->load_value(r, a, value);          
             break;
         default: 
-            assert(info->op_type < 14);
-
+            assert(op_type < 14);
     }
 }
 
@@ -232,7 +465,7 @@ int main(int argc, char *argv[])
     /* Create Memory Sequence, Register Array, and CPU function struct */
     Mem_Seq m = Mem_new(4);
     Reg_arr r = Reg_new(8);
-    cpu cpu = Create_cpu();
+    // cpu cpu = Create_cpu();
 
     /* Read in File */
     if (argc > 2 ) {
@@ -246,7 +479,7 @@ int main(int argc, char *argv[])
     }
 
     /* Universal Machine Execution */
-    exec_um(m, r, cpu);
+    exec_um(m, r);
 
     return 0;
 }
