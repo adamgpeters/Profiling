@@ -86,11 +86,11 @@ void read_file(char *filename, Mem_Seq m)
         }
         
         (((m->memory->seq)[0])->arr)[i] = word;
-        // ((Sequence_get(m->memory, 0))->arr)[i] = word;
+        // ((Sequence_get(memory, 0))->arr)[i] = word;
 
 
         
-        // Array_put((Array_T)Seq_get(m->memory, 0), i, word);
+        // Array_put((Array_T)Seq_get(memory, 0), i, word);
         // Mem_seg_put(m, 0, i, word);
         // *elem = word;
     }
@@ -121,25 +121,22 @@ void exec_um(Mem_Seq m, Reg_arr r)
 
     
 
+    Sequence_T memory = m->memory;
+    Identifier_T identifiers = m->identifiers;
 
-    int instr_length = ((m->memory->seq)[0])->length;
+
+    int instr_length = ((memory->seq)[0])->length;
     uint32_t instruction, value;
     unsigned a, b, c; 
-
 
     /* Iterate through Instruction Segment */
     while (program_counter < instr_length) {
         /* Parse and Execute Instruction */
-        // Array_get((Array_T)Seq_get(m->memory, seg_index), index);
+        // Array_get((Array_T)Seq_get(memory, seg_index), index);
         
-        instruction = (((m->memory->seq)[0])->arr)[program_counter];
-        
-                                // ((Sequence_get(m->memory, 0))->arr)[
-                                //                             program_counter];
+        instruction = (((memory->seq)[0])->arr)[program_counter];
 
-    
-
-        //  Array_get((Array_T)Seq_get(m->memory, 0), program_counter);
+        //  Array_get((Array_T)Seq_get(memory, 0), program_counter);
         Um_opcode op = op_type(instruction);
         // op_parse(instruction, &info);
         
@@ -163,9 +160,9 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 a = (instruction & REG_MASK); 
 
 
-                r[a] = (((m->memory->seq)[r[b]])->arr)[r[c]];
+                r[a] = (((memory->seq)[r[b]])->arr)[r[c]];
 
-                // r[a] = (((Array_T)Sequence_get(m->memory, r[b]))->arr)[r[c]];
+                // r[a] = (((Array_T)Sequence_get(memory, r[b]))->arr)[r[c]];
 
 
                 break;
@@ -176,9 +173,9 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 instruction = instruction >> 3;
                 a = (instruction & REG_MASK); 
 
-                (((m->memory->seq)[r[a]])->arr)[r[b]] = r[c];
+                (((memory->seq)[r[a]])->arr)[r[b]] = r[c];
 
-                // (((Array_T)Sequence_get(m->memory, r[a]))->arr)[r[b]] = r[c];
+                // (((Array_T)Sequence_get(memory, r[a]))->arr)[r[b]] = r[c];
 
 
                 break;
@@ -245,30 +242,30 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 }
                 /* Addding the Segment */
                 // unsigned placement;
-                if ((m->identifiers->size) == 0) {
-                    // Sequence_push(m->memory, seg);
-                    Sequence_T s = m->memory;
-                    if(s->size == s->capacity) {
-                            unsigned newCap = s->capacity * 2 + 1;
+                if ((identifiers->size) == 0) {
+                    // Sequence_push(memory, seg);
+                    Sequence_T s = memory;
+                    if(memory->size == memory->capacity) {
+                            unsigned newCap = memory->capacity * 2 + 1;
                             Array_T *temp = malloc(sizeof(temp) * newCap);
-                            unsigned size = s->size;
+                            unsigned size = memory->size;
                             for(unsigned i = 0; i < size; i ++ ) {
-                                temp[i] = (s->seq)[i];
+                                temp[i] = (memory->seq)[i];
                             }
-                            free(s->seq);
-                            (s->capacity) = newCap;
-                            (s->seq)= temp;
+                            free(memory->seq);
+                            (memory->capacity) = newCap;
+                            (memory->seq)= temp;
                     }
-                    (s->seq)[s->size] = seg;
-                    (s->size)++;
+                    (memory->seq)[s->size] = seg;
+                    (memory->size)++;
 
-                    placement = (s->size) - 1;
+                    placement = (memory->size) - 1;
                 } else {
-                    unsigned seqIndex = m->identifiers->ident
-                                        [--(m->identifiers->size)];
+                    unsigned seqIndex = identifiers->ident
+                                        [--(identifiers->size)];
 
-                    (m->memory->seq)[seqIndex] = seg;
-                    // Sequence_put(m->memory, seqIndex, seg);  
+                    (memory->seq)[seqIndex] = seg;
+                    // Sequence_put(memory, seqIndex, seg);  
                     placement =  seqIndex;             
                 }
 
@@ -290,15 +287,15 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 
                 int seg_index = r[c];
                 
-                Array_T seg_temp = (m->memory->seq)[seg_index];
+                Array_T seg_temp = (memory->seq)[seg_index];
                 if (seg_temp != NULL) {
                     /* Push index to Identifiers */
                     if (seg_index != 0) {
 
-                    //  Ident_push(m->identifiers, seg_index);
+                    //  Ident_push(identifiers, seg_index);
                     /********************** IDENT PUSH INLINE ****************/
                     
-                    Identifier_T i = m->identifiers;
+                    Identifier_T i = identifiers;
                     if(i->size == i->capacity) {
                         // resize(i);
 
@@ -331,8 +328,8 @@ void exec_um(Mem_Seq m, Reg_arr r)
                     // Array_free(&seg_temp);
                     free(seg_temp->arr);
                     free(seg_temp);
-                    (m->memory->seq)[seg_index] = NULL;
-                    // Sequence_put(m->memory, seg_index, NULL);
+                    (memory->seq)[seg_index] = NULL;
+                    // Sequence_put(memory, seg_index, NULL);
                 }
 
 
@@ -371,7 +368,7 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 int segment_index = r[b];
 
                 if (segment_index != 0) {
-                    Array_T to_copy = (m->memory->seq)[segment_index];     
+                    Array_T to_copy = (memory->seq)[segment_index];     
                     /*********** ARRAY LENGTH INLINE ********************/
                     // int length = Array_length(to_copy);
                     int length = to_copy->length;
@@ -388,19 +385,19 @@ void exec_um(Mem_Seq m, Reg_arr r)
                     /*********** MEM FREE SEG INLINE ********************/
                     /* Free previous segment and load into the first index */
                     // Mem_freeseg(m, 0);
-                    Array_T seg = (m->memory->seq)[0];
+                    Array_T seg = (memory->seq)[0];
                     if (seg != NULL) {                        
                         /********** ARRAY FREE INLINE *****************/
                         // Array_free(&seg);
                         free(seg->arr);
                         free(seg);
                         /**********************************************/
-                        // Sequence_put(m->memory, 0, NULL);
-                        (m->memory->seq)[0] = NULL;
+                        // Sequence_put(memory, 0, NULL);
+                        (memory->seq)[0] = NULL;
                     }
                     /******************************************************/
-                    Sequence_put(m->memory,0, new_seg);
-                    (m->memory->seq)[0] = new_seg;
+                    Sequence_put(memory,0, new_seg);
+                    (memory->seq)[0] = new_seg;
                 }
 
 
@@ -412,7 +409,7 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 //     return;
                 // }
                 // /* Create copy of segment and copy over info */
-                // Array_T to_copy = (m->memory->seq)[seg_index_temp];     
+                // Array_T to_copy = (memory->seq)[seg_index_temp];     
                 // int length_temp = to_copy->length;
                 // Array_T new_seg = malloc(sizeof(*new_seg));
                 // new_seg->arr = malloc(sizeof(uint32_t) * length_temp);
@@ -426,12 +423,12 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 // /* Free previous segment and load into the first index */
 
                 // // Mem_freeseg(m, 0);
-                // Array_T seg_temp2 = (m->memory->seq)[seg_index_temp];
+                // Array_T seg_temp2 = (memory->seq)[seg_index_temp];
                 // if (seg_temp2 != NULL) {
                 //     /* Push index to Identifiers */
                 //     if (seg_index_temp != 0) {
-                //         // Ident_push(m->identifiers, seg_index_temp);
-                //         Identifier_T i = m->identifiers;
+                //         // Ident_push(identifiers, seg_index_temp);
+                //         Identifier_T i = identifiers;
                 //         if(i->size == i->capacity) {
                 //             unsigned newCap = i->capacity * 2 + 1;
                 //             unsigned *temp = malloc(sizeof(temp) * newCap);
@@ -450,14 +447,14 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 //     // Array_free(&seg);
                 //     free(seg_temp2->arr);
                 //     free(seg_temp2);
-                //     (m->memory->seq)[seg_index_temp] = NULL;
-                //     // Sequence_put(m->memory, seg_index_temp, NULL);
+                //     (memory->seq)[seg_index_temp] = NULL;
+                //     // Sequence_put(memory, seg_index_temp, NULL);
                 // }
 
 
 
-                // (m->memory->seq)[0] = new_seg;
-                // Sequence_put(m->memory,0, new_seg);
+                // (memory->seq)[0] = new_seg;
+                // Sequence_put(memory,0, new_seg);
                 
                 
 
@@ -480,7 +477,7 @@ void exec_um(Mem_Seq m, Reg_arr r)
             program_counter = r[instruction & REG_MASK];
 
         
-            instr_length =((m->memory->seq)[0])->length;
+            instr_length =((memory->seq)[0])->length;
             // instr_length = Mem_seglength(m, 0);
         } else {
             program_counter ++;
