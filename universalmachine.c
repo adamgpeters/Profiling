@@ -42,8 +42,6 @@ typedef enum Um_opcode {
 void read_file(char *filename, Mem_Seq m);
 void exec_um(Mem_Seq m, Reg_arr r);
 Um_opcode op_type(uint32_t instruction);
-void exec_instr(Mem_Seq m, Reg_arr r, cpu cpu, Um_opcode op_type, 
-                uint32_t instruction);
 void quit_um(Mem_Seq m, Reg_arr r);
 
 /******************* READ FILE FUNCTION **************************************/
@@ -72,6 +70,13 @@ void read_file(char *filename, Mem_Seq m)
     }
 
     Mem_addseg(m, num_words);
+
+
+
+
+
+
+
 
     /* Create instructions word */
     for (unsigned i = 0; i < num_words; i++){
@@ -224,8 +229,6 @@ void exec_um(Mem_Seq m, Reg_arr r)
 
 /********************** ADD SEG INLINE ***************************************/
 
-                // unsigned placement = Mem_addseg(m, length);
-
                 unsigned placement;
 
                 int length = r[c];
@@ -246,14 +249,23 @@ void exec_um(Mem_Seq m, Reg_arr r)
                     // Sequence_push(m->memory, seg);
                     Sequence_T s = m->memory;
                     if(s->size == s->capacity) {
-                        resize(s);
+                            unsigned newCap = s->capacity * 2 + 1;
+                            Array_T *temp = malloc(sizeof(temp) * newCap);
+                            unsigned size = s->size;
+                            for(unsigned i = 0; i < size; i ++ ) {
+                                temp[i] = (s->seq)[i];
+                            }
+                            free(s->seq);
+                            (s->capacity) = newCap;
+                            (s->seq)= temp;
                     }
                     (s->seq)[s->size] = seg;
                     (s->size)++;
 
                     placement = (s->size) - 1;
                 } else {
-                    unsigned seqIndex = Ident_pop(m->identifiers);
+                    unsigned seqIndex = m->identifiers->ident
+                                        [--(m->identifiers->size)];
 
                     (m->memory->seq)[seqIndex] = seg;
                     // Sequence_put(m->memory, seqIndex, seg);  
@@ -282,11 +294,45 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 if (seg_temp != NULL) {
                     /* Push index to Identifiers */
                     if (seg_index != 0) {
-                        Ident_push(m->identifiers, seg_index);
+
+                    //  Ident_push(m->identifiers, seg_index);
+                    /********************** IDENT PUSH INLINE ****************/
+                    
+                    Identifier_T i = m->identifiers;
+                    if(i->size == i->capacity) {
+                        // resize(i);
+
+                        /****************** RESIZE IDENT INLINE **************/
+                        unsigned newCap = i->capacity * 2 + 1;
+                        unsigned *temp = malloc(sizeof(temp) * newCap);
+                        unsigned size = i->size;
+                        for(unsigned z = 0; z < size; z ++ ) {
+                            temp[z] = (i->ident)[z];
+                        }
+                        free(i->ident);
+                        (i->capacity) = newCap;
+                        (i->ident)= temp;
+
+                        /*****************************************************/
+
+
+                    }
+                    (i->ident)[i->size] = seg_index;
+                    (i->size)++;
+
+
+                    /*********************************************************/
+                    
+                
+
+                       
                     }
                     /* Free Segment */
-                    Array_free(&seg_temp);
-                    Sequence_put(m->memory, seg_index, NULL);
+                    // Array_free(&seg_temp);
+                    free(seg_temp->arr);
+                    free(seg_temp);
+                    (m->memory->seq)[seg_index] = NULL;
+                    // Sequence_put(m->memory, seg_index, NULL);
                 }
 
 
@@ -317,10 +363,106 @@ void exec_um(Mem_Seq m, Reg_arr r)
                 break;
             case LOADP: 
                 b = ((instruction >> 3) & REG_MASK); 
-                // cpu->load_program(r, m, b);       
-                Mem_load(m,r[b]);
+                // Mem_load(m,r[b]);
+
+/******************************* MEM LOAD INLINE *****************************/  
+
+                // Mem_load(m,r[b]);
+                int segment_index = r[b];
+
+                if (segment_index != 0) {
+                    Array_T to_copy = (m->memory->seq)[segment_index];     
+                    /*********** ARRAY LENGTH INLINE ********************/
+                    // int length = Array_length(to_copy);
+                    int length = to_copy->length;
+                    /*********** ARRAY NEW INLINE ********************/
+                    // Array_T new_seg = Array_new(length);
+                    Array_T new_seg = malloc(sizeof(*new_seg));
+                    new_seg->arr = malloc(sizeof(uint32_t) * length);
+                    new_seg->length = length;
+                    /************* ARRAY GET AND PUT *********************/
+                    for (int i  = 0; i < length; i++){
+                        uint32_t from = (to_copy->arr)[i];
+                        (new_seg->arr)[i] = from;
+                    }                     
+                    /*********** MEM FREE SEG INLINE ********************/
+                    /* Free previous segment and load into the first index */
+                    // Mem_freeseg(m, 0);
+                    Array_T seg = (m->memory->seq)[0];
+                    if (seg != NULL) {                        
+                        /********** ARRAY FREE INLINE *****************/
+                        // Array_free(&seg);
+                        free(seg->arr);
+                        free(seg);
+                        /**********************************************/
+                        // Sequence_put(m->memory, 0, NULL);
+                        (m->memory->seq)[0] = NULL;
+                    }
+                    /******************************************************/
+                    Sequence_put(m->memory,0, new_seg);
+                    (m->memory->seq)[0] = new_seg;
+                }
+
+
+
+    
+                
+                // int seg_index_temp = r[b];
+                // if (seg_index_temp == 0) {
+                //     return;
+                // }
+                // /* Create copy of segment and copy over info */
+                // Array_T to_copy = (m->memory->seq)[seg_index_temp];     
+                // int length_temp = to_copy->length;
+                // Array_T new_seg = malloc(sizeof(*new_seg));
+                // new_seg->arr = malloc(sizeof(uint32_t) * length_temp);
+                // new_seg->length = length_temp;
+
+                // for (int i  = 0; i < length_temp; i++){
+                //     // uint32_t from = (to_copy->arr)[i];
+                //     (new_seg->arr)[i] = (to_copy->arr)[i];
+                //     // *to = *from;
+                // }   
+                // /* Free previous segment and load into the first index */
+
+                // // Mem_freeseg(m, 0);
+                // Array_T seg_temp2 = (m->memory->seq)[seg_index_temp];
+                // if (seg_temp2 != NULL) {
+                //     /* Push index to Identifiers */
+                //     if (seg_index_temp != 0) {
+                //         // Ident_push(m->identifiers, seg_index_temp);
+                //         Identifier_T i = m->identifiers;
+                //         if(i->size == i->capacity) {
+                //             unsigned newCap = i->capacity * 2 + 1;
+                //             unsigned *temp = malloc(sizeof(temp) * newCap);
+                //             unsigned size = i->size;
+                //             for(unsigned z = 0; z < size; z ++ ) {
+                //                 temp[z] = (i->ident)[z];
+                //             }
+                //             free(i->ident);
+                //             (i->capacity) = newCap;
+                //             (i->ident)= temp;
+                //         }
+                //         (i->ident)[i->size] = seg_index_temp; //TODO: 
+                //         (i->size)++;
+                //     }
+                //     /* Free Segment */
+                //     // Array_free(&seg);
+                //     free(seg_temp2->arr);
+                //     free(seg_temp2);
+                //     (m->memory->seq)[seg_index_temp] = NULL;
+                //     // Sequence_put(m->memory, seg_index_temp, NULL);
+                // }
+
+
+
+                // (m->memory->seq)[0] = new_seg;
+                // Sequence_put(m->memory,0, new_seg);
+                
                 
 
+
+/*****************************************************************************/
                 break;
             case LV: 
                 value = instruction & MASK_VAL;
@@ -335,10 +477,9 @@ void exec_um(Mem_Seq m, Reg_arr r)
 
         /* Update Program Counter */
         if (op == LOADP) {
-            program_counter = Reg_get(r, (instruction & REG_MASK));
+            program_counter = r[instruction & REG_MASK];
 
-            
-
+        
             instr_length =((m->memory->seq)[0])->length;
             // instr_length = Mem_seglength(m, 0);
         } else {
@@ -362,102 +503,6 @@ Um_opcode op_type(uint32_t instruction)
     return (instruction & MASK_OP) >> 28;
 }
 
-/*
-  Function:  exec_instr
-  Arguments: Mem_seq m - pointer to Mem_Seq struct
-  Does:      Takes in a pointer to an instr_info struct and executes the 
-             encoded instruction indicated by the struct's optype. Each optype
-             aligns with a function which exists in the cpu function struct. 
-  Return:    none - void
-*/
-void exec_instr(Mem_Seq m, Reg_arr r, cpu cpu, Um_opcode op_type, 
-                uint32_t instruction)
-{
-    unsigned a, b, c; 
-    uint32_t value;
-    switch (op_type) {
-        case CMOV: 
-            c = (instruction & REG_MASK); 
-            instruction = instruction >> 3;
-            b = (instruction & REG_MASK); 
-            a = (instruction >> 3 & REG_MASK); 
-            cpu->move(r, a, b, c);     
-            break;
-        case SLOAD: 
-            c = (instruction & REG_MASK); 
-            instruction = instruction >> 3;
-            b = (instruction & REG_MASK); 
-            a = (instruction >> 3 & REG_MASK); 
-            cpu->load(r, m, a, b, c);     
-            break;
-        case SSTORE: 
-            c = (instruction & REG_MASK); 
-            instruction = instruction >> 3;
-            b = (instruction & REG_MASK); 
-            a = (instruction >> 3 & REG_MASK); 
-            cpu->store(r, m, a, b, c);   
-            break;
-        case ADD: 
-            c = (instruction & REG_MASK); 
-            instruction = instruction >> 3;
-            b = (instruction & REG_MASK); 
-            a = (instruction >> 3 & REG_MASK); 
-            cpu->add(r, a, b, c);           
-            break;
-        case MUL: 
-            c = (instruction & REG_MASK); 
-            instruction = instruction >> 3;
-            b = (instruction & REG_MASK); 
-            a = (instruction >> 3 & REG_MASK); 
-            cpu->mult(r, a, b, c);          
-            break;
-        case DIV: 
-            c = (instruction & REG_MASK); 
-            instruction = instruction >> 3;
-            b = (instruction & REG_MASK); 
-            a = (instruction >> 3 & REG_MASK); 
-            cpu->divide(r, a, b, c);        
-            break;
-        case NAND: 
-            c = (instruction & REG_MASK); 
-            instruction = instruction >> 3;
-            b = (instruction & REG_MASK); 
-            a = (instruction >> 3 & REG_MASK); 
-            cpu->nand(r, a, b, c);         
-            break; 
-        case HALT: 
-            cpu->halt(r, m, cpu);                            
-            break; /* TODO */
-        case MAP: 
-            c = (instruction & REG_MASK); 
-            b = (instruction >> 3 & REG_MASK); 
-            cpu->map(r, m, b, c);                 
-            break;
-        case UNMAP: 
-            c = (instruction & REG_MASK); 
-            cpu->unmap(r, m, c);                      
-            break;
-        case OUT: 
-            c = (instruction & REG_MASK); 
-            cpu->output(r, c);                  
-            break;
-        case IN: 
-            c = (instruction & REG_MASK); 
-            cpu->input(r, c);                    
-            break;
-        case LOADP: 
-            b = ((instruction >> 3) & REG_MASK); 
-            cpu->load_program(r, m, b);               
-            break;
-        case LV: 
-            value = instruction & MASK_VAL;
-            a = (instruction & MASK_A_VAL) >> 25;
-            cpu->load_value(r, a, value);          
-            break;
-        default: 
-            assert(op_type < 14);
-    }
-}
 
 /********************* MAIN FUNCTION *****************************************/
 int main(int argc, char *argv[]) 
